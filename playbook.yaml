@@ -1,0 +1,9 @@
+- name: Provision AWS EC2 instance(s)
+  tags: "ec2, provision_ec2"
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  roles:
+    - ec2
+
+# - name: Setup Monitoring to

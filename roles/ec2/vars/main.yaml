@@ -1,0 +1,16 @@
+
+# security group
+security_group: "test-security-group"
+
+# ec2
+instance_name: "ansible-instance"
+key_name: "ansible-key-pair"
+region: "eu-central-1"
+image_id: "ami-03b3b5f65db7e5c6f"
+instance_type: "t2.micro"
+hosts_group: "ec2_instances"
+subnet_id: "subnet-0e8226debf8afac29"
+exact_count: 1
+
+# inventory
+inventory_path: "inventory.ini"

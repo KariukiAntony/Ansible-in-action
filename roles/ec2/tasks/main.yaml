@@ -1,0 +1,88 @@
+- name: Provision ec2 instance(s)
+  block:
+  - name: Create a security group
+    tags: "security_group"
+    amazon.aws.ec2_group:
+      name: "{{ security_group }}"
+      description: "Security group for ansible provisioning"
+      region: "{{ region }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      rules:
+      - proto: tcp
+        ports:
+        - 22
+        cidr_ip: 0.0.0.0/0
+        rule_desc: allow all on ssh port
+      - proto: tcp
+        ports:
+        - 80
+        cidr_ip: 0.0.0.0/0
+        rule_desc: allow all http traffic
+      - proto: tcp
+        ports:
+        - 443
+        cidr_ip: 0.0.0.0/0
+        rule_desc: allow all https traffic
+    register: sg_result
+    failed_when: sg_result.failed
+
+  - name: Lauch an instance with a public IP address
+    tags: ["launch_ec2", "create_ec2"]
+    amazon.aws.ec2_instance:
+      name: "{{ instance_name }}"
+      image_id: "{{ image_id }}"
+      vpc_subnet_id: "{{ subnet_id }}"
+      instance_type: "{{ instance_type }}"
+      key_name: "{{ key_name }}"
+      security_group: "{{ security_group }}"
+      region: "{{ region }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+      network:
+        assign_public_ip: true
+      wait: yes
+      exact_count: "{{ exact_count }}"
+    register: ec2_info
+    failed_when: ec2_info.failed
+
+  - name: Add new instance to inventory
+    tags: "add_to_inventory"
+    add_host:
+      hostname: "{{ item.public_ip_address }}"
+      groups:
+        - "{{ hosts_group }}"
+    with_items: "{{ ec2_info.instances }}"
+    when: ec2_info.changed
+
+  - name: List added hosts
+    debug:
+      msg: "Added {{ item.public_ip_address }} to group {{ hosts_group }}"
+    with_items: "{{ ec2_info.instances }}"
+
+  - name: Persist intance details in inventory file
+    lineinfile:
+      path: "{{ inventory_path }}"
+      line: "{{ item.public_ip_address }}"
+      create: yes
+    loop: "{{ ec2_info.instances }}"
+    when: ec2_info.changed
+
+  rescue:
+
+  - name: Indicate rescue was needed.
+    set_fact:
+      rescue_extended: true
+
+  - name: Log error
+    debug:
+      msg: "An error occured during ec2 provisioning."
+
+  - name: Fail with custom error
+    fail:
+      msg: "Provisioning failed. Please check the settings."
+
+  always:
+  - name: User notification
+    debug:
+      msg: "Ec2 Provisioning has finished."

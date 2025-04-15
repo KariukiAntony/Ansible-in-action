@@ -3,7 +3,7 @@
 security_group: "test-security-group"
 
 # ec2
-instance_name: "ansible-instance"
+instance_name: "ansible-test"
 key_name: "ansible-key-pair"
 region: "eu-central-1"
 image_id: "ami-03b3b5f65db7e5c6f"

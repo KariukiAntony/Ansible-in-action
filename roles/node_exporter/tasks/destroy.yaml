@@ -1,0 +1,49 @@
+- name: "stop the {{service_name}} service"
+  service:
+    name: "{{service_name}}"
+    state: stopped
+    enabled: false
+
+- name: "remove the service file and binaries"
+  file:
+    path: "{{item}}"
+    state: absent
+  with_items:
+     - "/etc/systemd/system/{{service_name}}.service"
+     - "/usr/local/bin/{{service_name}}"
+  ignore_errors: true
+
+- name: reload the systemd
+  systemd:
+    daemon_reload: true
+  ignore_errors: true
+
+- name: remove the user
+  user:
+    name: "{{user_name}}"
+    state: absent
+    remove: yes
+  ignore_errors: true
+
+- name: remove the service group
+  group:
+    name: "{{group_name}}"
+    state: absent
+  ignore_errors: true
+
+- name: remove the firewall rule.
+  community.general.ufw:
+    rule: deny
+    port: 9100
+    proto: tcp
+  ignore_errors: true
+
+- name: Check if node_exporter binary is removed
+  command: which {{service_name}}
+  register: which_result
+  ignore_errors: true
+
+- name: Fail if node_exporter binary is still found
+  fail:
+    msg: "node_exporter binary is still found in the system path!"
+  when: which_result.rc == 0

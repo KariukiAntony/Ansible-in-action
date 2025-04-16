@@ -8,4 +8,9 @@
   roles:
     - ec2
 
-# - name: Setup Monitoring to
+- name: Setup Full Monitoring stack.
+  tags: "monitoring"
+  hosts: all
+  gather_facts: false
+  roles:
+    - node_exporter

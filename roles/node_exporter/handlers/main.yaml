@@ -1,0 +1,4 @@
+- name: service_file_changed
+  service:
+    name: "{{service_name}}"
+    state: restarted

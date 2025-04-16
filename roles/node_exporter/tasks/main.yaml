@@ -1,0 +1,70 @@
+- name: Install node_exporter
+  block:
+    - name: create a node_exporter group
+      group:
+        name: "{{group_name}}"
+        state: present
+
+    - name: create a node_exporter user
+      user:
+        name: "{{user_name}}"
+        group: "{{group_name}}"
+        system: true
+        comment: "{{user_name}} added via ansible"
+        create_home: false
+        shell: "/sbin/nologin"
+        state: present
+
+    - name: download and extract node_exporter binary
+      unarchive:
+        src: "https://github.com/prometheus/node_exporter/releases/download/v{{version}}/node_exporter-{{version}}.linux-amd64.tar.gz"
+        dest: "/tmp/"
+        remote_src: yes
+
+    - name: copy the node_exporter binary to bin
+      copy:
+        src: "/tmp/node_exporter-{{version}}.linux-amd64/node_exporter"
+        dest: "/usr/local/bin/"
+        owner: "{{user_name}}"
+        group: "{{group_name}}"
+        mode: 755
+        remote_src: true
+
+    - name: Delete the node_exporter temp dir.
+      file:
+        path: "/tmp/node_exporter-{{version}}.linux-amd64"
+        state: absent
+
+    - name: create a node_exporter service
+      template:
+        src: node_exporter.j2
+        dest: "/etc/systemd/system/{{service_name}}.service"
+      notify: "service_file_changed"
+
+    - name: start {{service_name}} service
+      service:
+        name: "{{service_name}}"
+        state: started
+        enabled: yes
+
+    - name: check if node_exporter emits metrics.
+      uri:
+        url: "http://127.0.0.1:9100/metrics"
+        return_content: true
+        status_code: 200
+      until: "metrics.status == 200"
+      register: metrics
+
+  rescue:
+    - name: Log error
+      debug:
+        msg: "An error occured when installing node_exporter"
+
+    - name: Fail with a custom error.
+      fail:
+        msg: "Installation failed."
+
+  always:
+    - name: User notification
+      debug:
+        msg: "Node exporter installation has finished."

@@ -10,7 +10,13 @@
 
 - name: Setup Full Monitoring stack.
   tags: "monitoring"
-  hosts: all
-  gather_facts: false
+  hosts: monitor
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: update the package index
+      apt:
+        update_cache: true
+        upgrade: true
   roles:
     - node_exporter

@@ -55,16 +55,12 @@
     with_items: "{{ ec2_info.instances }}"
     when: ec2_info.changed
 
-  - name: List added hosts
-    debug:
-      msg: "Added {{ item.public_ip_address }} to group {{ hosts_group }}"
-    with_items: "{{ ec2_info.instances }}"
-
-  - name: Persist intance details in inventory file
+  - name: Persist instance details in inventory file
     lineinfile:
       path: "{{ inventory_path }}"
-      line: "{{ item.public_ip_address }}"
-      create: yes
+      line: "{{ item.public_ip_address }} ansible_user='{{ ansible_user }}' "
+      insertafter: '^\[monitor\]'
+      state: present
     loop: "{{ ec2_info.instances }}"
     when: ec2_info.changed
 

@@ -1,0 +1,70 @@
+- name: Install a web server
+  block:
+  - name: update cache and install nginx
+    apt:
+      name: nginx
+      state: present
+      update_cache: yes
+
+  - name: Remove the default nginx site if it exists.
+    file:
+      path: "/etc/nginx/sites-enabled/default"
+      state: absent
+    ignore_errors: true
+
+  - name: copy nginx config to remote host
+    template:
+      src: "nginx.j2"
+      dest: "{{ nginx_proxy_conf }}"
+      mode: 0755
+      notify: Restart Nginx
+
+  - name: Test nginx configuration
+    command: nginx -t
+    register: nginx_test
+    changed_when: false
+    failed_when: nginx_test.rc != 0
+
+  - name: reload nginx service
+    service:
+      name: "{{service_name}}"
+      state: reloaded
+      enabled: yes
+
+  - name: check if nginx is accessible.
+    uri:
+      url: "http://localhost:80"
+      return_content: true
+      status_code: 200
+    register: output
+    delay: 3
+    retries: 5
+    until: output.status == 200
+
+  - name: print the nginx output
+    debug:
+      var: output
+
+  - name: allow firewall access to
+    community.general.ufw:
+      rule: allow
+      port: 80
+      proto: tcp
+
+  rescue:
+  - name: Indicate rescue was needed.
+    set_fact:
+      rescue_extended: true
+
+  - name: Log error
+    debug:
+      msg: "An error occured during web server installation."
+
+  - name: Fail with custom error
+    fail:
+      msg: "Web server installation failed. Please check the settings."
+
+  always:
+  - name: User notification
+    debug:
+      msg: "Web server installation has finished."

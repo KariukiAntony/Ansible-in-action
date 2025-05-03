@@ -1,0 +1,5 @@
+# Nginx
+service_name: nginx
+grafana_port: 3000
+server_name: "{{ groups['monitor'] }} "
+nginx_proxy_conf: "/etc/nginx/nginx.conf"

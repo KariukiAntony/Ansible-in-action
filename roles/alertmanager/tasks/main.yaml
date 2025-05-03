@@ -1,79 +1,98 @@
-- name: create a alertmanager group
-  group:
-    name: "{{group_name}}"
-    state: present
+- name: Install Alert manager
+  block:
+  - name: create a alertmanager group
+    group:
+      name: "{{group_name}}"
+      state: present
 
-- name: create a alertmanager user
-  user:
-    name: "{{user_name}}"
-    group: "{{group_name}}"
-    system: true
-    comment: "{{user_name}} added via ansible"
-    create_home: false
-    shell: "/sbin/nologin"
-    state: present
+  - name: create a alertmanager user
+    user:
+      name: "{{user_name}}"
+      group: "{{group_name}}"
+      system: true
+      comment: "{{user_name}} added via ansible"
+      create_home: false
+      shell: "/sbin/nologin"
+      state: present
 
-- name: download and extract alertmanager executable.
-  unarchive:
-    src: "https://github.com/prometheus/alertmanager/releases/download/v{{version}}/alertmanager-{{version}}.linux-amd64.tar.gz"
-    dest: "/tmp/"
-    remote_src: yes
+  - name: download and extract alertmanager executable.
+    unarchive:
+      src: "https://github.com/prometheus/alertmanager/releases/download/v{{version}}/alertmanager-{{version}}.linux-amd64.tar.gz"
+      dest: "/tmp/"
+      remote_src: yes
 
-- name: copy the alertmanager executable to bin.
-  copy:
-    src: "/tmp/alertmanager-{{version}}.linux-amd64/alertmanager"
-    dest: "/usr/local/bin/"
-    owner: "{{user_name}}"
-    group: "{{group_name}}"
-    mode: 0755
-    remote_src: true # if false(default) it will look for the src at the control node and try copying to the managed host.
+  - name: copy the alertmanager executable to bin.
+    copy:
+      src: "/tmp/alertmanager-{{version}}.linux-amd64/alertmanager"
+      dest: "/usr/local/bin/"
+      owner: "{{user_name}}"
+      group: "{{group_name}}"
+      mode: 755
+      remote_src: true # if false(default) it will look for the src at the control node and try copying to the managed host.
 
-- name: delete the alertmanager temp dir
-  file:
-    path: "/tmp/alertmanager-{{version}}.linux-amd64"
-    state: absent
+  - name: delete the alertmanager temp dir
+    file:
+      path: "/tmp/alertmanager-{{version}}.linux-amd64"
+      state: absent
 
-- name: create pv and config directories for alertmanager
-  file:
-    path: "{{ item }}"
-    state: directory
-    owner: "{{user_name}}"
-    group: "{{group_name}}"
-    mode: 0755
-  loop:
+  - name: create pv and config directories for alertmanager
+    file:
+      path: "{{ item }}"
+      state: directory
+      owner: "{{user_name}}"
+      group: "{{group_name}}"
+      mode: 755
+    loop:
     - "/data/alertmanager"
     - "/etc/alertmanager"
 
-- name: copy alertmanager config file
-  copy:
-    src: alertmanager.yaml
-    dest: "/etc/alertmanager"
-    mode: 0644
-    remote_src: false
-  register: config
+  - name: copy alertmanager config file
+    copy:
+      src: alertmanager.yaml
+      dest: "/etc/alertmanager"
+      mode: 644
+      remote_src: false
+    register: config
 
-- name: create a alertmanager service
-  template:
-    src: alertmanager.j2
-    dest: "/etc/systemd/system/{{service_name}}.service"
-  notify: systemd_reload
+  - name: create a alertmanager service
+    template:
+      src: alertmanager.j2
+      dest: "/etc/systemd/system/{{service_name}}.service"
+    notify: systemd_reload
 
-- name: start {{service_name}} service
-  service:
-    name: "{{service_name}}"
-    state: started
-    enabled: yes
+  - name: start {{service_name}} service
+    service:
+      name: "{{service_name}}"
+      state: started
+      enabled: yes
 
-- name: "restart the systemd"
-  systemd:
-    daemon_reload: yes
-  ignore_errors: yes
+  - name: "restart the systemd"
+    systemd:
+      daemon_reload: yes
+    ignore_errors: yes
 
-- name: check if alertmanager emits merics.
-  uri:
-    url: "http://localhost:9093"
-    return_content: true
-  register: metrics
+  - name: check if alertmanager emits merics.
+    uri:
+      url: "http://localhost:9093"
+      return_content: true
+    register: metrics
 
-- name: print the alertmanager output
-  debug: var=metrics
+  - name: print the alertmanager output
+    debug: var=metrics
+
+  rescue:
+  - name: Rescue needed
+    set_fact:
+      rescue_extended: true
+  - name: Log error
+    debug:
+      msg: "An error occured during Alert manager installations."
+
+  - name: Fail with custom error.
+    fail:
+      msg: "Alert manager installation failed. Please check the settings."
+
+  always:
+  - name: User notification
+    debug:
+      msg: "Alert manager installation has finished."

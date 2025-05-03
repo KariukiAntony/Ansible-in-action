@@ -1,83 +1,102 @@
+- name: Install prometheus
+  block:
+  - name: create a prometheus group
+    group:
+      name: "{{group_name}}"
+      state: present
 
-- name: create a prometheus group
-  group:
-    name: "{{group_name}}"
-    state: present
+  - name: create a prometheus user
+    user:
+      name: "{{user_name}}"
+      group: "{{group_name}}"
+      system: true
+      comment: "{{user_name}} added via ansible"
+      create_home: false
+      shell: "/sbin/nologin"
+      state: present
 
-- name: create a prometheus user
-  user:
-    name: "{{user_name}}"
-    group: "{{group_name}}"
-    system: true
-    comment: "{{user_name}} added via ansible"
-    create_home: false
-    shell: "/sbin/nologin"
-    state: present
+  - name: download and extract prometheus executable
+    unarchive:
+      src: "https://github.com/prometheus/prometheus/releases/download/v{{version}}/prometheus-{{version}}.linux-amd64.tar.gz"
+      dest: "/tmp/"
+      remote_src: yes
 
-- name: download and extract prometheus executable
-  unarchive:
-    src: "https://github.com/prometheus/prometheus/releases/download/v{{version}}/prometheus-{{version}}.linux-amd64.tar.gz"
-    dest: "/tmp/"
-    remote_src: yes
+  - name: copy the prometheus executable to bin
+    copy:
+      src: "/tmp/prometheus-{{version}}.linux-amd64/prometheus"
+      dest: "/usr/local/bin/"
+      owner: "{{user_name}}"
+      group: "{{group_name}}"
+      mode: 755
+      remote_src: true # if false(default) it will look for the src at the control node and try copying to the managed host.
 
-- name: copy the prometheus executable to bin
-  copy:
-    src: "/tmp/prometheus-{{version}}.linux-amd64/prometheus"
-    dest: "/usr/local/bin/"
-    owner: "{{user_name}}"
-    group: "{{group_name}}"
-    mode: 0755
-    remote_src: true # if false(default) it will look for the src at the control node and try copying to the managed host.
+  - name: delete the prometheus temp dir
+    file:
+      path: "/tmp/prometheus-{{version}}.linux-amd64"
+      state: absent
 
-- name: delete the prometheus temp dir
-  file:
-    path: "/tmp/prometheus-{{version}}.linux-amd64"
-    state: absent
-
-- name: create directories for prometheus
-  file:
-    path: "{{item}}"
-    state: directory
-    owner: "{{user_name}}"
-    group: "{{group_name}}"
-    mode: 0755
-  with_items:
+  - name: create directories for prometheus
+    file:
+      path: "{{item}}"
+      state: directory
+      owner: "{{user_name}}"
+      group: "{{group_name}}"
+      mode: 755
+    with_items:
     - "/data/prometheus"
     - "/etc/prometheus"
 
-- name: copy alert config file
-  copy:
-    src: alertrules.yaml
-    dest: "/etc/prometheus/alert.rules.yaml"
-    mode: 0644
-    remote_src: false # To tell it to copy from the control node.
-  notify: systemd_reload
+  - name: copy alert config file
+    copy:
+      src: alertrules.yaml
+      dest: "/etc/prometheus/alert.rules.yaml"
+      mode: 644
+      remote_src: false # To tell it to copy from the control node.
+    notify: systemd_reload
 
-- name: copy config file and create a prometheus service
-  template:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-  with_items:
-   - {"src": "prometheus.j2", "dest": "/etc/systemd/system/{{service_name}}.service"}
-   - {"src": "prometheus.conf.j2", "dest": "/etc/prometheus/prometheus.conf"}
-  notify: systemd_reload
+  - name: copy config file and create a prometheus service
+    template:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+    with_items:
+    - { "src": "prometheus.j2", "dest": "/etc/systemd/system/{{service_name}}.service" }
+    - { "src": "prometheus.conf.j2", "dest": "/etc/prometheus/prometheus.conf" }
+    notify: systemd_reload
 
-- name: start {{service_name}} service
-  service:
-    name: "{{service_name}}"
-    state: started
-    enabled: yes
+  - name: start {{service_name}} service
+    service:
+      name: "{{service_name}}"
+      state: started
+      enabled: yes
 
-- name: "restart the systemd"
-  systemd:
-    daemon_reload: yes
-  ignore_errors: yes
+  - name: "restart the systemd"
+    systemd:
+      daemon_reload: yes
+    ignore_errors: yes
 
-- name: check if prometheus is accessible.
-  uri:
-    url: "http://localhost:9090"
-    return_content: true
-  register: output
+  - name: check if prometheus is accessible.
+    uri:
+      url: "http://localhost:9090"
+      return_content: true
+    register: output
 
-- name: print the prometheus output
-  debug: var=output
+  - name: print the prometheus output
+    debug: var=output
+
+  rescue:
+  - name: Indicate rescue was needed.
+    set_fact:
+      rescue_extended: true
+
+  - name: Log error
+    debug:
+      msg: "An error occured during Prometheus installation."
+
+  - name: Fail with custom error
+    fail:
+      msg: "Prometheus installation failed. Please check the settings."
+
+  always:
+  - name: User notification
+    debug:
+      msg: "Prometheus installation has finished."

@@ -1,0 +1,11 @@
+
+packages:
+  - apt-transport-https
+  - software-properties-common
+  - wget
+
+# grafana
+service_name: "grafana-server"
+grafana_repo_file: "/etc/apt/sources.list.d/grafana.list"
+grafana_key_file: "/etc/apt/keyrings/grafana.gpg"
+

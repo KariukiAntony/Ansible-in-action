@@ -1,0 +1,53 @@
+- name: Install prerequisite dependecies.
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{packages}}"
+
+- name: Create keyrings directory.
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: 0755
+
+- name: Download and store Grafana GPG Key.
+  shell: |
+    wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
+  args:
+    executable: /bin/bash # By default ansible uses /bin/sh to run shell commands which may not support features like [[]]
+
+- name: Add grafana repository into sources lists
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+    state: present
+    filename: grafana
+
+- name: update the package index
+  apt:
+    update_cache: true
+    upgrade: true
+
+- name: install grafana OSS
+  apt:
+    name: grafana
+    state: present
+
+- name: Enable and start Grafana service
+  service:
+    name: "{{service_name}}"
+    enabled: true
+    state: started
+
+- name: check if grafana is accessible
+  uri:
+    url: "http://localhost:3000"
+    return_content: true
+    status_code: 200
+  register: output
+  delay: 3
+  retries: 5
+  until: output.status == 200
+
+- name: print grafana output
+  debug:
+    var: output

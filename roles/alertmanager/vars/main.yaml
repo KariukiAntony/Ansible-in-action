@@ -1,0 +1,8 @@
+
+group_name: alertmanager
+user_name: alertmanager
+
+# alert_manager
+version: "0.28.1"
+service_name: "alertmanager"
+exec_command: /usr/local/bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yaml --storage.path=/data/alertmanager

@@ -17,7 +17,7 @@
       src: "nginx.j2"
       dest: "{{ nginx_proxy_conf }}"
       mode: 0755
-      notify: Restart Nginx
+    notify: restart_nginx
 
   - name: Test nginx configuration
     command: nginx -t

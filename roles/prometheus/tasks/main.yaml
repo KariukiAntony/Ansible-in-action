@@ -78,7 +78,11 @@
     uri:
       url: "http://localhost:9090"
       return_content: true
+      status_code: 200
     register: output
+    delay: 2
+    retries: 5
+    until: "output.status == 200"
 
   - name: print the prometheus output
     debug: var=output

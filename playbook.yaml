@@ -19,4 +19,8 @@
         update_cache: true
         upgrade: true
   roles:
-    - node_exporter
+    # - node_exporter
+    # - alertmanager
+    - prometheus
+    # - grafana
+    # - webserver

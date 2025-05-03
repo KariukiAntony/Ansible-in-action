@@ -52,8 +52,10 @@
         url: "http://127.0.0.1:9100/metrics"
         return_content: true
         status_code: 200
-      until: "metrics.status == 200"
       register: metrics
+      delay: 2
+      retries: 5
+      until: "metrics.status == 200"
 
   rescue:
     - name: Log error

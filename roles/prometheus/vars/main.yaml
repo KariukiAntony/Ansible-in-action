@@ -1,0 +1,8 @@
+
+group_name: prometheus
+user_name: prometheus
+
+# prometheus
+version: "3.3.0-rc.0"
+service_name: "prometheus"
+exec_command: "/usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.conf"

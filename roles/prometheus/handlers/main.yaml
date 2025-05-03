@@ -1,0 +1,4 @@
+- name: systemd_reload
+  service:
+    name: "{{service_name}}"
+    state: restarted
